@@ -1,0 +1,48 @@
+<?php
+/**
+ * Plugin Name:       Sms - OTP
+ * Description:       Smart surveys start now!
+ * Version:           1.0.0
+ * Author:            Alkaweb
+ * Author URI:        https://alka-web.com
+ * Text Domain:       alkaweb
+ * License:           GPL-2.0+
+ * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
+ * GitHub Plugin URI: https://github.com/2Fwebd/feedier-wordpress
+ */
+ 
+/*
+ * Plugin constants
+ */
+/*if(!defined('FEEDIER_URL'))
+	define('FEEDIER_URL', plugin_dir_url( __FILE__ ));
+if(!defined('FEEDIER_PATH'))
+	define('FEEDIER_PATH', plugin_dir_path( __FILE__ ));*/
+ 
+/*
+ * Main class
+ */
+/**
+ * Class Feedier
+ *
+ * This class creates the option page and add the web app script
+ */
+class Sms_otp
+{
+ 
+    /**
+     * Feedier constructor.
+     *
+     * The main plugin actions registered for WordPress
+     */
+    public function __construct()
+    {
+ 
+    }
+ 
+}
+ 
+/*
+ * Starts our plugin class, easy!
+ */
+new Sms_otp();
