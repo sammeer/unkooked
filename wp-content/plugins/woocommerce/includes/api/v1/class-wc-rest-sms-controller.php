@@ -28,6 +28,8 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 	 * @var string
 	 */
 	protected $namespace = 'wc/v1';
+	protected $authkey = "244146ATgClDq25bcf0b13";
+	protected $sender = "UNKOOK";
 
 	/**
 	 * Route base.
@@ -47,49 +49,72 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 				'permission_callback' => array( $this, 'get_items_permissions_check' ),
 				'args'                => $this->get_collection_params(),
 			),
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'create_item' ),
-				'permission_callback' => array( $this, 'create_item_permissions_check' ),
-				'args'                => array_merge( $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ), array(
-					'email' => array(
-						'required' => true,
-						'type'     => 'string',
-						'description' => __( 'New user email address.', 'woocommerce' ),
-					),
-					'username' => array(
-						'required' => 'no' === get_option( 'woocommerce_registration_generate_username', 'yes' ),
-						'description' => __( 'New user username.', 'woocommerce' ),
-						'type'     => 'string',
-					),
-					'password' => array(
-						'required' => 'no' === get_option( 'woocommerce_registration_generate_password', 'no' ),
-						'description' => __( 'New user password.', 'woocommerce' ),
-						'type'     => 'string',
-					),
-				) ),
-			),
 			'schema' => array( $this, 'get_public_item_schema' ),
 		) );
 
 
 		register_rest_route( $this->namespace, '/' . $this->rest_base . '/send_otp', array(
 			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'batch_items' ),
-				'permission_callback' => array( $this, 'batch_items_permissions_check' ),
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'send_reg_otp' ),
+				'permission_callback' => array( $this, 'send_otp_permissions_check' ),
 				'args'                => array_merge( $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ), array(
-					'phone_num' => array(
+
+					'message' => array(
 						'required' => true,
 						'type'     => 'string',
 						'description' => __( 'New user email address.', 'woocommerce' ),
 					),
-					'message' => array(
+					'sender' => array(
 						'required' => 'no' === get_option( 'woocommerce_registration_generate_username', 'yes' ),
 						'description' => __( 'New user username.', 'woocommerce' ),
 						'type'     => 'string',
-					)
-				) ),
+					),
+					'mobile' => array(
+						'required' => 'no' === get_option( 'woocommerce_registration_generate_password', 'no' ),
+						'description' => __( 'New user password.', 'woocommerce' ),
+						'type'     => 'string',
+					),
+					
+					) ),
+			),
+			'schema' => array( $this, 'get_public_batch_schema' ),
+		) );
+
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/verify_otp', array(
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'verify_otp' ),
+				'permission_callback' => array( $this, 'send_otp_permissions_check' ),
+				'args'                => array_merge( $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ), array(
+
+					'otp' => array(
+						'required' => true,
+						'type'     => 'string',
+						'description' => __( 'New user email address.', 'woocommerce' ),
+					),
+					
+					) ),
+			),
+			'schema' => array( $this, 'get_public_batch_schema' ),
+		) );
+
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/resend_otp', array(
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'resend_otp' ),
+				'permission_callback' => array( $this, 'send_otp_permissions_check' ),
+				'args'                => array_merge( $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ), array(
+
+					'mobile' => array(
+						'required' => true,
+						'type'     => 'string',
+						'description' => __( 'New user email address.', 'woocommerce' ),
+					),
+					
+					) ),
 			),
 			'schema' => array( $this, 'get_public_batch_schema' ),
 		) );
@@ -102,8 +127,172 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 	 * @param  WP_REST_Request $request Full details about the request.
 	 * @return WP_Error|boolean
 	 */
+
+
+
+	//////////////send otp for registration////////////////////////
+	public function send_reg_otp($request)
+	{
+		//print_r($request);exit;
+		$authkey = $this->authkey;
+		$message = urlencode($request['message']);
+		$sender = $this->sender;
+		$mobile = $request['mobile'];
+		$curl = curl_init();
+		
+		
+		curl_setopt_array($curl, array(
+		  CURLOPT_URL => "http://control.msg91.com/api/sendotp.php?template=1&otp_length=4&authkey=".$authkey."&message=".$message."&sender=".$sender."&mobile=".$mobile,
+		  CURLOPT_RETURNTRANSFER => true,
+		  CURLOPT_ENCODING => "",
+		  CURLOPT_MAXREDIRS => 10,
+		  CURLOPT_TIMEOUT => 30,
+		  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		  CURLOPT_CUSTOMREQUEST => "POST",
+		  CURLOPT_POSTFIELDS => "",
+		  CURLOPT_SSL_VERIFYHOST => 0,
+		  CURLOPT_SSL_VERIFYPEER => 0,
+		));
+
+		$result = curl_exec($curl);
+		$err = curl_error($curl);
+		
+		curl_close($curl);
+		if ($err) {
+		  //echo "cURL Error #:" . $err;
+		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
+			$response = new stdClass();
+		    $response->code     = 'failure';
+		    $response->message  = 'Cannot send otp';
+		    $response->data  = $err;
+		    return new WP_REST_Response( $response , 400 );
+		} else {
+		  
+		 // $response = $this->prepare_item_for_response( $response, $request );
+			$response = new stdClass();
+		    $response->code     = 'success';
+		    $response->message  = 'Otp sent successfully';
+		    $response->data 	= json_decode($result);
+		    return new WP_REST_Response( $response , 200 );
+			//return $response;
+		}
+	}
+
+
+
+	//////////////verify otp for registration///////////////
+	public function verify_otp($request){
+		$authkey = $this->authkey;
+		$sender = $this->sender;
+		$mobile = $request['mobile'];
+		$otp = $request['otp'];
+		$curl = curl_init();
+
+		curl_setopt_array($curl, array(
+		CURLOPT_URL => "https://control.msg91.com/api/verifyRequestOTP.php?authkey=".$authkey."&mobile=".$mobile."&otp=".$otp,
+		CURLOPT_RETURNTRANSFER => true,
+		CURLOPT_ENCODING => "",
+		CURLOPT_MAXREDIRS => 10,
+		CURLOPT_TIMEOUT => 30,
+		CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		CURLOPT_CUSTOMREQUEST => "POST",
+		CURLOPT_POSTFIELDS => "",
+		CURLOPT_SSL_VERIFYHOST => 0,
+		CURLOPT_SSL_VERIFYPEER => 0,
+		CURLOPT_HTTPHEADER => array(
+		   "content-type: application/x-www-form-urlencoded"
+		 	),
+		));
+
+		$response = curl_exec($curl);
+		$err = curl_error($curl);
+
+		curl_close($curl);
+
+		/*if ($err) {
+		  echo "cURL Error #:" . $err;
+		} else {
+		  echo $response;
+		}
+*/
+		if ($err) {
+		  //echo "cURL Error #:" . $err;
+		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
+			$response = new stdClass();
+		    $response->code     = 'failure';
+		    $response->message  = 'Invalid OTP';
+		    $response->data  = $err;
+		    return new WP_REST_Response( $response , 400 );
+		} else {
+		  
+		 // $response = $this->prepare_item_for_response( $response, $request );
+			$response = new stdClass();
+		    $response->code     = 'success';
+		    $response->message  = 'OTP verified successfully';
+		    $response->data 	= json_decode($result);
+		    return new WP_REST_Response( $response , 200 );
+			//return $response;
+		}
+	}
+
+
+	////////////////resend otp //////////////////////////////
+	public function resend_otp($request){
+		$authkey = $this->authkey;
+		$sender = $this->sender;
+		$mobile = $request['mobile'];
+		
+		$curl = curl_init();
+
+		curl_setopt_array($curl, array(
+		  CURLOPT_URL => "http://control.msg91.com/api/retryotp.php?authkey=".$authkey."&mobile=".$mobile,
+		  CURLOPT_RETURNTRANSFER => true,
+		  CURLOPT_ENCODING => "",
+		  CURLOPT_MAXREDIRS => 10,
+		  CURLOPT_TIMEOUT => 30,
+		  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		  CURLOPT_CUSTOMREQUEST => "POST",
+		  CURLOPT_POSTFIELDS => "",
+		  CURLOPT_SSL_VERIFYHOST => 0,
+		  CURLOPT_SSL_VERIFYPEER => 0,
+		  CURLOPT_HTTPHEADER => array(
+		    "content-type: application/x-www-form-urlencoded"
+		  ),
+		));
+
+		$result = curl_exec($curl);
+		$err = curl_error($curl);
+		$result_msg = json_decode($result);
+
+
+		
+
+		curl_close($curl);
+
+		if ($err) {
+		  //echo "cURL Error #:" . $err;
+		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
+			$response = new stdClass();
+		    $response->code     = 'failure';
+		    $response->message  = 'Cannot send otp';
+		    $response->data  = $err;
+		    return new WP_REST_Response( $response , 400 );
+		} else {
+		  
+		 // $response = $this->prepare_item_for_response( $response, $request );
+			$response = new stdClass();
+		    $response->code     = 'success';
+		    $response->message  = $result_msg->message;
+		    $response->data 	= json_decode($result);
+		    return new WP_REST_Response( $response , 200 );
+			//return $response;
+		}
+
+
+	}
+
+
 	public function get_items_permissions_check( $request ) {
-		print_r($request);exit;
 		if ( ! wc_rest_check_user_permissions( 'read' ) ) {
 			return new WP_Error( 'woocommerce_rest_cannot_view', __( 'Sorry, you cannot list resources.', 'woocommerce' ), array( 'status' => rest_authorization_required_code() ) );
 		}
@@ -184,6 +373,16 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 	 * @return bool|WP_Error
 	 */
 	public function batch_items_permissions_check( $request ) {
+		//echo 123;exit;
+		if ( ! wc_rest_check_user_permissions( 'batch' ) ) {
+			return new WP_Error( 'woocommerce_rest_cannot_batch', __( 'Sorry, you are not allowed to batch manipulate this resource.', 'woocommerce' ), array( 'status' => rest_authorization_required_code() ) );
+		}
+
+		return true;
+	}
+
+
+	public function send_otp_permissions_check( $request ) {
 		//echo 123;exit;
 		if ( ! wc_rest_check_user_permissions( 'batch' ) ) {
 			return new WP_Error( 'woocommerce_rest_cannot_batch', __( 'Sorry, you are not allowed to batch manipulate this resource.', 'woocommerce' ), array( 'status' => rest_authorization_required_code() ) );
