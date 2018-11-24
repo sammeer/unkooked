@@ -245,7 +245,7 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 		$curl = curl_init();
 
 		curl_setopt_array($curl, array(
-		  CURLOPT_URL => "http://control.msg91.com/api/retryotp.php?authkey=".$authkey."&mobile=".$mobile,
+		  CURLOPT_URL => "http://control.msg91.com/api/retryotp.php?authkey=".$authkey."&mobile=".$mobile."&retrytype=text",
 		  CURLOPT_RETURNTRANSFER => true,
 		  CURLOPT_ENCODING => "",
 		  CURLOPT_MAXREDIRS => 10,
