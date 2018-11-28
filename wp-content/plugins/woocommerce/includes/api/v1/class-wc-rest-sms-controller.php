@@ -204,17 +204,15 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 		 	),
 		));
 
-		$response = curl_exec($curl);
+		$result = curl_exec($curl);
 		$err = curl_error($curl);
+		$result_msg = json_decode($result);
 
 		curl_close($curl);
 
-		/*if ($err) {
-		  echo "cURL Error #:" . $err;
-		} else {
-		  echo $response;
-		}
-*/
+		
+		/*print_r($err);
+		print_r($result_msg->type);exit;*/
 		if ($err) {
 		  //echo "cURL Error #:" . $err;
 		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
@@ -224,13 +222,23 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 		    $response->data  = $err;
 		    return new WP_REST_Response( $response , 400 );
 		} else {
-		  
-		 // $response = $this->prepare_item_for_response( $response, $request );
 			$response = new stdClass();
-		    $response->code     = 'success';
-		    $response->message  = 'OTP verified successfully';
-		    $response->data 	= json_decode($result);
-		    return new WP_REST_Response( $response , 200 );
+
+			if($result_msg->type=="error"){
+				$response->code     = $result_msg->type;
+		    	$response->message  = 'OTP verification failed';
+		    	$response->data 	= json_decode($result);
+		    	return new WP_REST_Response( $response , 401 );
+
+			}else if($result_msg->type=="success"){
+				$response->code     = $result_msg->type;
+		    	$response->message  = 'OTP verified successfully';
+		    	$response->data 	= json_decode($result);
+		    	return new WP_REST_Response( $response , 200 );
+			}
+		 // $response = $this->prepare_item_for_response( $response, $request )
+		    
+		    
 			//return $response;
 		}
 	}
