@@ -119,6 +119,25 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 			'schema' => array( $this, 'get_public_batch_schema' ),
 		) );
 
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/send_sms', array(
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'send_transact_sms' ),
+				'permission_callback' => array( $this, 'send_otp_permissions_check' ),
+				'args'                => array_merge( $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ), array(
+
+					'mobile' => array(
+						'required' => true,
+						'type'     => 'string',
+						'description' => __( 'New user email address.', 'woocommerce' ),
+					),
+					
+					) ),
+			),
+			'schema' => array( $this, 'get_public_batch_schema' ),
+		) );
+
 	}
 
 	/**
@@ -228,7 +247,7 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 				$response->code     = $result_msg->type;
 		    	$response->message  = 'OTP verification failed';
 		    	$response->data 	= json_decode($result);
-		    	return new WP_REST_Response( $response , 401 );
+		    	return new WP_REST_Response( $response , 200 );
 
 			}else if($result_msg->type=="success"){
 				$response->code     = $result_msg->type;
@@ -298,6 +317,61 @@ class WC_REST_Sms_V1_Controller extends WC_REST_Controller {
 
 
 	}
+
+
+
+    	//////////////send otp for registration////////////////////////
+	public function send_transact_sms($request)
+	{
+		$authkey = $this->authkey;
+		$message = urlencode($request['message']);
+		$sender = $this->sender;
+		$mobile = $request['mobile'];
+		$curl = curl_init();
+		
+		curl_setopt_array($curl, array(
+		  CURLOPT_URL => "http://api.msg91.com/api/v2/sendsms?message=".$message."&encrypt=SOCKET&authkey=".$authkey."&mobiles=".$mobile."&route=4&sender=".$sender."&country=91",
+
+		  CURLOPT_RETURNTRANSFER => true,
+		  CURLOPT_ENCODING => "",
+		  CURLOPT_MAXREDIRS => 10,
+		  CURLOPT_TIMEOUT => 30,
+		  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		  CURLOPT_CUSTOMREQUEST => "POST",
+		  CURLOPT_POSTFIELDS => "{ \"sender\": \"$sender\", \"route\": \"4\", \"country\": \"91\", \"sms\": [ { \"message\": \"$message\", \"to\": [ \"$mobile\"] } ] }",
+		
+		  CURLOPT_SSL_VERIFYHOST => 0,
+		  CURLOPT_SSL_VERIFYPEER => 0,
+		  CURLOPT_HTTPHEADER => array(
+		    "authkey: ".$authkey,
+		    "content-type: application/json"
+		  ),
+		));
+
+		$result = curl_exec($curl);
+		$err = curl_error($curl);
+		$result_msg = json_decode($result);		
+		curl_close($curl);
+		if ($err) {
+		  //echo "cURL Error #:" . $err;
+		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
+			$response = new stdClass();
+		    $response->code     = 'failure';
+		    $response->message  = 'Cannot send message';
+		    $response->data  = $err;
+		    return new WP_REST_Response( $response , 400 );
+		} else {
+		  
+		 // $response = $this->prepare_item_for_response( $response, $request );
+			$response = new stdClass();
+		    $response->code     = $result_msg->type;
+		    $response->message  = $result_msg->message;
+		    $response->data 	= json_decode($result);
+		    return new WP_REST_Response( $response , 200 );
+			//return $response;
+		}
+	}
+
 
 
 	public function get_items_permissions_check( $request ) {

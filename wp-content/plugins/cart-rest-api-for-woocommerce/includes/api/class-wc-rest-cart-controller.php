@@ -8,7 +8,7 @@
  * @category API
  * @package  Cart REST API for WooCommerce/API
  * @since    1.0.0
- * @version  1.0.4
+ * @version  1.0.6
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -76,6 +76,12 @@ class WC_REST_Cart_Controller {
 			'callback' => array( $this, 'clear_cart' ),
 		));
 
+		// View Cart - wc/v2/cart/clear (POST)
+		register_rest_route( $this->namespace, '/' . $this->rest_base  . '/apply_coupon', array(
+			'methods'  => WP_REST_Server::CREATABLE,
+			'callback' => array( $this, 'apply_cart_coupon' ),
+		));
+
 		// Add Item - wc/v2/cart/add (POST)
 		register_rest_route( $this->namespace, '/' . $this->rest_base . '/add', array(
 			'methods'  => WP_REST_Server::CREATABLE,
@@ -97,10 +103,14 @@ class WC_REST_Cart_Controller {
 					}
 				),
 				'variation' => array(
-					'validate_callback' => 'is_array'
+					'validate_callback' => function( $param, $request, $key ) {
+						return is_array( $param );
+					}
 				),
 				'cart_item_data' => array(
-					'validate_callback' => 'is_array'
+					'validate_callback' => function( $param, $request, $key ) {
+						return is_array( $param );
+					}
 				)
 			)
 		) );
@@ -140,31 +150,22 @@ class WC_REST_Cart_Controller {
 				'callback' => array( $this, 'remove_item' ),
 			),
 		) );
-
-		/**
-		 * Developer Notes: More endpoints to possibly create. (Must be registered before cart base endpoint.)
-		 *
-		 * Get Cart Shipping Total - wc/v2/cart/totals?shipping_only=true
-		 * Calculate Shipping - wc/v2/cart/calculate?shipping_only=true
-		 * Shipping Methods - wc/v2/cart/shipping-methods
-		 * Chosen Shipping Method Only - wc/v2/cart/shipping-methods?chosen_only=true
-		 * Calculate Fees, Get Fees and Add Fees - wc/v2/cart/fees
-		 */
 	} // register_routes()
 
 	/**
 	 * Get cart.
 	 *
-	 * @access public
-	 * @since  1.0.0
-	 * @param  array $data
-	 * @return WP_REST_Response
+	 * @access  public
+	 * @since   1.0.0
+	 * @version 1.0.6
+	 * @param   array $data
+	 * @return  WP_REST_Response
 	 */
 	public function get_cart( $data = array() ) {
 		$cart = WC()->cart->get_cart();
 
 		if ( $this->get_cart_contents_count( array( 'return' => 'numeric' ) ) <= 0 ) {
-			return new WP_REST_Response( __( 'Cart is empty!', 'cart-rest-api-for-woocommerce' ), 200 );
+			return new WP_REST_Response( array(), 200 );
 		}
 
 		$show_thumb = ! empty( $data['thumb'] ) ? $data['thumb'] : false;
@@ -226,6 +227,98 @@ class WC_REST_Cart_Controller {
 		}
 	} // END clear_cart()
 
+
+	public function apply_cart_coupon($data = array()){
+
+		// Coupons are globally disabled.
+		if ( ! wc_coupons_enabled() ) {
+			return false;
+		}
+		
+		$coupon_code = $data['coupon_code'];
+		//print_r($coupon_code);exit;echo 123;exit;
+		// Sanitize coupon code.
+		$coupon_code = wc_format_coupon_code( $coupon_code );
+
+		// Get the coupon.
+		$the_coupon = new WC_Coupon( $coupon_code );
+
+		 print_r($the_coupon);exit;
+
+		// Prevent adding coupons by post ID.
+		if ( $the_coupon->get_code() !== $coupon_code ) {
+			$the_coupon->set_code( $coupon_code );
+			$the_coupon->add_coupon_message( WC_Coupon::E_WC_COUPON_NOT_EXIST );
+			return false;
+		}
+
+		// Check it can be used with cart.
+		if ( ! $the_coupon->is_valid() ) {
+			wc_add_notice( $the_coupon->get_error_message(), 'error' );
+			return false;
+		}
+
+		// Check if applied.
+		if ( $this->has_discount( $coupon_code ) ) {
+			$the_coupon->add_coupon_message( WC_Coupon::E_WC_COUPON_ALREADY_APPLIED );
+			return false;
+		}
+
+		// If its individual use then remove other coupons.
+		if ( $the_coupon->get_individual_use() ) {
+			$coupons_to_keep = apply_filters( 'woocommerce_apply_individual_use_coupon', array(), $the_coupon, $this->applied_coupons );
+
+			foreach ( $this->applied_coupons as $applied_coupon ) {
+				$keep_key = array_search( $applied_coupon, $coupons_to_keep, true );
+				if ( false === $keep_key ) {
+					$this->remove_coupon( $applied_coupon );
+				} else {
+					unset( $coupons_to_keep[ $keep_key ] );
+				}
+			}
+
+			if ( ! empty( $coupons_to_keep ) ) {
+				$this->applied_coupons += $coupons_to_keep;
+			}
+		}
+
+		// Check to see if an individual use coupon is set.
+		if ( $this->applied_coupons ) {
+			foreach ( $this->applied_coupons as $code ) {
+				$coupon = new WC_Coupon( $code );
+
+				if ( $coupon->get_individual_use() && false === apply_filters( 'woocommerce_apply_with_individual_use_coupon', false, $the_coupon, $coupon, $this->applied_coupons ) ) {
+
+					// Reject new coupon.
+					$coupon->add_coupon_message( WC_Coupon::E_WC_COUPON_ALREADY_APPLIED_INDIV_USE_ONLY );
+
+					return false;
+				}
+			}
+		}
+
+		$this->applied_coupons[] = $coupon_code;
+
+		// Choose free shipping.
+		if ( $the_coupon->get_free_shipping() ) {
+			$packages                = WC()->shipping->get_packages();
+			$chosen_shipping_methods = WC()->session->get( 'chosen_shipping_methods' );
+
+			foreach ( $packages as $i => $package ) {
+				$chosen_shipping_methods[ $i ] = 'free_shipping';
+			}
+
+			WC()->session->set( 'chosen_shipping_methods', $chosen_shipping_methods );
+		}
+
+		$the_coupon->add_coupon_message( WC_Coupon::WC_COUPON_SUCCESS );
+
+		do_action( 'woocommerce_applied_coupon', $coupon_code );
+
+		return true;
+	
+	}
+
 	/**
 	 * Validate the product id argument.
 	 *
@@ -240,7 +333,7 @@ class WC_REST_Cart_Controller {
 		}
 
 		if ( ! is_numeric( $product_id ) ) {
-				return new WP_Error( 'wc_cart_rest_product_id_not_numeric', __( 'Product ID must be numeric!', 'cart-rest-api-for-woocommerce' ), array( 'status' => 500 ) );
+			return new WP_Error( 'wc_cart_rest_product_id_not_numeric', __( 'Product ID must be numeric!', 'cart-rest-api-for-woocommerce' ), array( 'status' => 500 ) );
 		}
 	} // END validate_product_id()
 
@@ -272,6 +365,30 @@ class WC_REST_Cart_Controller {
 
 		$this->validate_quantity( $quantity );
 	} // END validate_product()
+
+	/**
+	 * Checks if the product in the cart has enough stock 
+	 * before updating the quantity.
+	 * 
+	 * @access protected
+	 * @since  1.0.6
+	 * @param  array  $current_data
+	 * @param  string $quantity
+	 * @return bool|WP_Error
+	 */
+	protected function has_enough_stock( $current_data = array(), $quantity = 1 ) {
+		$product_id      = ! isset( $current_data['product_id'] ) ? 0 : absint( $current_data['product_id'] );
+		$variation_id    = ! isset( $current_data['variation_id'] ) ? 0 : absint( $current_data['variation_id'] );
+		$current_product = wc_get_product( $variation_id ? $variation_id : $product_id );
+
+		$quantity = absint( $quantity );
+
+		if ( ! $current_product->has_enough_stock( $quantity ) ) {
+			return new WP_Error( 'wc_cart_rest_not_enough_in_stock', sprintf( __( 'You cannot add that amount of &quot;%1$s&quot; to the cart because there is not enough stock (%2$s remaining).', 'cart-rest-api-for-woocommerce' ), $current_product->get_name(), wc_format_stock_quantity_for_display( $current_product->get_stock_quantity(), $current_product ) ), array( 'status' => 500 ) );
+		}
+
+		return true;
+	} // END has_enough_stock()
 
 	/**
 	 * Add to Cart.
@@ -312,16 +429,16 @@ class WC_REST_Cart_Controller {
 
 		// Product is purchasable check.
 		if ( ! $product_data->is_purchasable() ) {
-			throw new WP_Error( 'wc_cart_rest_cannot_be_purchased', __( 'Sorry, this product cannot be purchased.', 'cart-rest-api-for-woocommerce' ), array( 'status' => 500 ) );
+			return new WP_Error( 'wc_cart_rest_cannot_be_purchased', __( 'Sorry, this product cannot be purchased.', 'cart-rest-api-for-woocommerce' ), array( 'status' => 500 ) );
 		}
 
 		// Stock check - only check if we're managing stock and backorders are not allowed.
 		if ( ! $product_data->is_in_stock() ) {
-			throw new WP_Error( 'wc_cart_rest_product_out_of_stock', sprintf( __( 'You cannot add &quot;%s&quot; to the cart because the product is out of stock.', 'cart-rest-api-for-woocommerce' ), $product_data->get_name() ), array( 'status' => 500 ) );
+			return new WP_Error( 'wc_cart_rest_product_out_of_stock', sprintf( __( 'You cannot add &quot;%s&quot; to the cart because the product is out of stock.', 'cart-rest-api-for-woocommerce' ), $product_data->get_name() ), array( 'status' => 500 ) );
 		}
 		if ( ! $product_data->has_enough_stock( $quantity ) ) {
 			/* translators: 1: product name 2: quantity in stock */
-			throw new WP_Error( 'wc_cart_rest_not_enough_in_stock', sprintf( __( 'You cannot add that amount of &quot;%1$s&quot; to the cart because there is not enough stock (%2$s remaining).', 'cart-rest-api-for-woocommerce' ), $product_data->get_name(), wc_format_stock_quantity_for_display( $product_data->get_stock_quantity(), $product_data ) ), array( 'status' => 500 ) );
+			return new WP_Error( 'wc_cart_rest_not_enough_in_stock', sprintf( __( 'You cannot add that amount of &quot;%1$s&quot; to the cart because there is not enough stock (%2$s remaining).', 'cart-rest-api-for-woocommerce' ), $product_data->get_name(), wc_format_stock_quantity_for_display( $product_data->get_stock_quantity(), $product_data ) ), array( 'status' => 500 ) );
 		}
 
 		// Stock check - this time accounting for whats already in-cart.
@@ -329,7 +446,7 @@ class WC_REST_Cart_Controller {
 			$products_qty_in_cart = WC()->cart->get_cart_item_quantities();
 
 			if ( isset( $products_qty_in_cart[ $product_data->get_stock_managed_by_id() ] ) && ! $product_data->has_enough_stock( $products_qty_in_cart[ $product_data->get_stock_managed_by_id() ] + $quantity ) ) {
-				throw new WP_Error(
+				return new WP_Error(
 					'wc_cart_rest_not_enough_stock_remaining',
 					sprintf(
 						__( 'You cannot add that amount to the cart &mdash; we have %1$s in stock and you already have %2$s in your cart.', 'cart-rest-api-for-woocommerce' ),
@@ -409,7 +526,7 @@ class WC_REST_Cart_Controller {
 	 *
 	 * @access  public
 	 * @since   1.0.0
-	 * @version 1.0.3
+	 * @version 1.0.6
 	 * @param   array $data
 	 * @return  WP_Error|WP_REST_Response
 	 */
@@ -421,6 +538,8 @@ class WC_REST_Cart_Controller {
 
 		if ( $cart_item_key != '0' ) {
 			$current_data = WC()->cart->get_cart_item( $cart_item_key ); // Fetches the cart item data before it is updated.
+
+			$this->has_enough_stock( $current_data, $quantity ); // Checks if the item has enough stock before updating.
 
 			if ( WC()->cart->set_quantity( $cart_item_key, $quantity ) ) {
 

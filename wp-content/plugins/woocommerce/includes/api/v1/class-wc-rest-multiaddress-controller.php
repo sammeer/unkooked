@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @package WooCommerce/API
  * @extends WC_REST_Controller
  */
-class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
+class WC_REST_Multiaddress_V1_Controller extends WC_REST_Controller {
 
 	/**
 	 * Endpoint namespace.
@@ -28,205 +28,62 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 	 * @var string
 	 */
 	protected $namespace = 'wc/v1';
-	//protected $authkey = "244146ATgClDq25bcf0b13";
 
 	/**
 	 * Route base.
 	 *
 	 * @var string
 	 */
-	protected $rest_base = 'customers';
+	protected $rest_base = 'multiaddress';
 
 	/**
 	 * Register the routes for customers.
 	 */
 	public function register_routes() {
-		register_rest_route( $this->namespace, '/' . $this->rest_base, array(
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_items' ),
-				'permission_callback' => array( $this, 'get_items_permissions_check' ),
-				'args'                => $this->get_collection_params(),
-			),
+		
+
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/add_ship_address', array(
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'create_item' ),
-				'permission_callback' => array( $this, 'create_item_permissions_check' ),
+				'callback'            => array( $this, 'add_ship_address' )
+				
+			),
+			'schema' => array( $this, 'get_public_batch_schema' ),
+		) );
+
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/get_ship_address', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_ship_address' )
+				
+			),
+			'schema' => array( $this, 'get_public_batch_schema' ),
+		) );
+
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/resend_otp', array(
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'resend_otp' ),
+				'permission_callback' => array( $this, 'send_otp_permissions_check' ),
 				'args'                => array_merge( $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ), array(
-					'email' => array(
+
+					'mobile' => array(
 						'required' => true,
 						'type'     => 'string',
 						'description' => __( 'New user email address.', 'woocommerce' ),
 					),
-					'username' => array(
-						'required' => 'no' === get_option( 'woocommerce_registration_generate_username', 'yes' ),
-						'description' => __( 'New user username.', 'woocommerce' ),
-						'type'     => 'string',
-					),
-					'password' => array(
-						'required' => 'no' === get_option( 'woocommerce_registration_generate_password', 'no' ),
-						'description' => __( 'New user password.', 'woocommerce' ),
-						'type'     => 'string',
-					),
-				) ),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)', array(
-			'args' => array(
-				'id' => array(
-					'description' => __( 'Unique identifier for the resource.', 'woocommerce' ),
-					'type'        => 'integer',
-				),
-			),
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_item' ),
-				'permission_callback' => array( $this, 'get_item_permissions_check' ),
-				'args'                => array(
-					'context' => $this->get_context_param( array( 'default' => 'view' ) ),
-				),
-			),
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'update_item' ),
-				'permission_callback' => array( $this, 'update_item_permissions_check' ),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
-			),
-			array(
-				'methods'             => WP_REST_Server::DELETABLE,
-				'callback'            => array( $this, 'delete_item' ),
-				'permission_callback' => array( $this, 'delete_item_permissions_check' ),
-				'args'                => array(
-					'force' => array(
-						'default'     => false,
-						'type'        => 'boolean',
-						'description' => __( 'Required to be true, as resource does not support trashing.', 'woocommerce' ),
-					),
-					'reassign' => array(
-						'default'     => 0,
-						'type'        => 'integer',
-						'description' => __( 'ID to reassign posts to.', 'woocommerce' ),
-					),
-				),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/batch', array(
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'batch_items' ),
-				'permission_callback' => array( $this, 'batch_items_permissions_check' ),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
+					
+					) ),
 			),
 			'schema' => array( $this, 'get_public_batch_schema' ),
 		) );
 
 
 
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/email/(?P<email>.+)', array(
-			'args' => array(
-				'email' => array(
-					'description' => __( 'Unique identifier for the resource.', 'woocommerce' ),
-					'type'        => 'string',
-				),
-			),
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_items' ),
-				'permission_callback' => array( $this, 'get_items_permissions_check' ),
-				'args'                => $this->get_collection_params(),
-			),
-			
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base .'/send_otp/', array(
-			
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'send_cus_otp' ),
-				'permission_callback' => array(),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base .'/user_exist/(?P<username>[\d]+)', array(
-			
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'find_customer_by_username' ),
-				'permission_callback' => array(),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/forgot_password', array(
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'forgot_pass_process' ),
-				'permission_callback' => array( $this, 'create_item_permissions_check' ),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/forgot_otp_verify', array(
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'forgot_pass_otp_verify' ),
-				'permission_callback' => array( $this, 'create_item_permissions_check' ),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/forgot_otp_resend', array(
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'forgot_pass_process' ),
-				'permission_callback' => array( $this, 'create_item_permissions_check' ),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/update_password', array(
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'update_forgot_pass' ),
-				'permission_callback' => array( $this, 'create_item_permissions_check' ),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/send_test', array(
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_items' ),
-				'permission_callback' => array( $this, 'get_items_permissions_check' ),
-				'args'                => $this->get_collection_params(),
-			),
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'send_cus_otp' ),
-				'permission_callback' => array( $this, 'create_item_permissions_check' ),
-				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
-			),
-			'schema' => array( $this, 'get_public_item_schema' ),
-		) );
-
 	}
-
 
 	/**
 	 * Check whether a given request has permission to read customers.
@@ -234,65 +91,300 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 	 * @param  WP_REST_Request $request Full details about the request.
 	 * @return WP_Error|boolean
 	 */
+
+	public function add_ship_address($request){
+
+		///validate user
+		$response = new stdClass();
+		$id        = (int) $request['customer_id'];
+		$user_data = get_userdata( $id );
+
+		if ( empty( $id ) || empty(  $user_data->data->ID ) ) {
+			return new WP_Error( 'woocommerce_rest_invalid_id', __( 'Invalid resource ID.', 'woocommerce' ), array( 'status' => 404 ) );
+		}
+
+		$ship_add = array(
+						'label' => $request['label'],
+						'shipping_first_name' => $request['shipping_first_name'],
+						'shipping_last_name' => $request['shipping_last_name'],
+						'shipping_country' => $request['shipping_country'],
+						'shipping_address_1' => $request['shipping_address_1'],
+						'shipping_address_2' => $request['shipping_address_2'],
+						'shipping_city' => $request['shipping_city'],
+						'shipping_state' => $request['shipping_state'],
+						'shipping_postcode' => $request['shipping_postcode'],
+						'shipping_address_is_default' => $request['shipping_address_is_default']
+						 );
+		
+		
+		////get users previous address 
+		$otherAddr = get_user_meta( $user_data->data->ID, 'wc_multiple_shipping_addresses', true );
+		
+		////add them to current data
+		if(count($otherAddr)==0){
+			
+			$addresses = $ship_add;
+			
+		}else{
+			
+			$otherAddr[] = $ship_add;
+			$addresses = $otherAddr;
+		}
+
+		////update all the addresses
+		if(update_user_meta( $user_data->data->ID, 'wc_multiple_shipping_addresses', $addresses )){
+				$response->code     = 'success';
+				$response->message  = 'Address Saved successfully';
+				$error_code = 200;
+		}else{
+				$response->code     = 'error';
+				$response->message  = 'Some issue occured';
+				$error_code = 400;
+		}
+		return new WP_REST_Response( $response , $error_code );
+		
+	}
+
+
+	public function get_ship_address($request){
+		$id        = (int) $request['customer_id'];
+		$user_data = get_userdata( $id );
+
+		if ( empty( $id ) || empty( $user_data->ID ) ) {
+			return new WP_Error( 'woocommerce_rest_invalid_id', __( 'Invalid resource ID.', 'woocommerce' ), array( 'status' => 404 ) );
+		}
+	}
+	//////////////send otp for registration////////////////////////
+	public function send_reg_otp($request)
+	{
+		//print_r($request);exit;
+		$authkey = $this->authkey;
+		$message = urlencode($request['message']);
+		$sender = $this->sender;
+		$mobile = $request['mobile'];
+		$curl = curl_init();
+		
+		
+		curl_setopt_array($curl, array(
+		  CURLOPT_URL => "http://control.msg91.com/api/sendotp.php?template=1&otp_length=4&authkey=".$authkey."&message=".$message."&sender=".$sender."&mobile=".$mobile,
+		  CURLOPT_RETURNTRANSFER => true,
+		  CURLOPT_ENCODING => "",
+		  CURLOPT_MAXREDIRS => 10,
+		  CURLOPT_TIMEOUT => 30,
+		  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		  CURLOPT_CUSTOMREQUEST => "POST",
+		  CURLOPT_POSTFIELDS => "",
+		  CURLOPT_SSL_VERIFYHOST => 0,
+		  CURLOPT_SSL_VERIFYPEER => 0,
+		));
+
+		$result = curl_exec($curl);
+		$err = curl_error($curl);
+		
+		curl_close($curl);
+		if ($err) {
+		  //echo "cURL Error #:" . $err;
+		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
+			$response = new stdClass();
+		    $response->code     = 'failure';
+		    $response->message  = 'Cannot send otp';
+		    $response->data  = $err;
+		    return new WP_REST_Response( $response , 400 );
+		} else {
+		  
+		 // $response = $this->prepare_item_for_response( $response, $request );
+			$response = new stdClass();
+		    $response->code     = 'success';
+		    $response->message  = 'Otp sent successfully';
+		    $response->data 	= json_decode($result);
+		    return new WP_REST_Response( $response , 200 );
+			//return $response;
+		}
+	}
+
+
+
+	//////////////verify otp for registration///////////////
+	public function verify_otp($request){
+		$authkey = $this->authkey;
+		$sender = $this->sender;
+		$mobile = $request['mobile'];
+		$otp = $request['otp'];
+		$curl = curl_init();
+
+		curl_setopt_array($curl, array(
+		CURLOPT_URL => "https://control.msg91.com/api/verifyRequestOTP.php?authkey=".$authkey."&mobile=".$mobile."&otp=".$otp,
+		CURLOPT_RETURNTRANSFER => true,
+		CURLOPT_ENCODING => "",
+		CURLOPT_MAXREDIRS => 10,
+		CURLOPT_TIMEOUT => 30,
+		CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		CURLOPT_CUSTOMREQUEST => "POST",
+		CURLOPT_POSTFIELDS => "",
+		CURLOPT_SSL_VERIFYHOST => 0,
+		CURLOPT_SSL_VERIFYPEER => 0,
+		CURLOPT_HTTPHEADER => array(
+		   "content-type: application/x-www-form-urlencoded"
+		 	),
+		));
+
+		$result = curl_exec($curl);
+		$err = curl_error($curl);
+		$result_msg = json_decode($result);
+
+		curl_close($curl);
+
+		
+		/*print_r($err);
+		print_r($result_msg->type);exit;*/
+		if ($err) {
+		  //echo "cURL Error #:" . $err;
+		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
+			$response = new stdClass();
+		    $response->code     = 'failure';
+		    $response->message  = 'Invalid OTP';
+		    $response->data  = $err;
+		    return new WP_REST_Response( $response , 400 );
+		} else {
+			$response = new stdClass();
+
+			if($result_msg->type=="error"){
+				$response->code     = $result_msg->type;
+		    	$response->message  = 'OTP verification failed';
+		    	$response->data 	= json_decode($result);
+		    	return new WP_REST_Response( $response , 200 );
+
+			}else if($result_msg->type=="success"){
+				$response->code     = $result_msg->type;
+		    	$response->message  = 'OTP verified successfully';
+		    	$response->data 	= json_decode($result);
+		    	return new WP_REST_Response( $response , 200 );
+			}
+		 // $response = $this->prepare_item_for_response( $response, $request )
+		    
+		    
+			//return $response;
+		}
+	}
+
+
+	////////////////resend otp //////////////////////////////
+	public function resend_otp($request){
+		$authkey = $this->authkey;
+		$sender = $this->sender;
+		$mobile = $request['mobile'];
+		
+		$curl = curl_init();
+
+		curl_setopt_array($curl, array(
+		  CURLOPT_URL => "http://control.msg91.com/api/retryotp.php?authkey=".$authkey."&mobile=".$mobile."&retrytype=text",
+		  CURLOPT_RETURNTRANSFER => true,
+		  CURLOPT_ENCODING => "",
+		  CURLOPT_MAXREDIRS => 10,
+		  CURLOPT_TIMEOUT => 30,
+		  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		  CURLOPT_CUSTOMREQUEST => "POST",
+		  CURLOPT_POSTFIELDS => "",
+		  CURLOPT_SSL_VERIFYHOST => 0,
+		  CURLOPT_SSL_VERIFYPEER => 0,
+		  CURLOPT_HTTPHEADER => array(
+		    "content-type: application/x-www-form-urlencoded"
+		  ),
+		));
+
+		$result = curl_exec($curl);
+		$err = curl_error($curl);
+		$result_msg = json_decode($result);
+
+
+		
+
+		curl_close($curl);
+
+		if ($err) {
+		  //echo "cURL Error #:" . $err;
+		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
+			$response = new stdClass();
+		    $response->code     = 'failure';
+		    $response->message  = 'Cannot send otp';
+		    $response->data  = $err;
+		    return new WP_REST_Response( $response , 400 );
+		} else {
+		  
+		 // $response = $this->prepare_item_for_response( $response, $request );
+			$response = new stdClass();
+		    $response->code     = 'success';
+		    $response->message  = $result_msg->message;
+		    $response->data 	= json_decode($result);
+		    return new WP_REST_Response( $response , 200 );
+			//return $response;
+		}
+
+
+	}
+
+
+
+    	//////////////send otp for registration////////////////////////
+	public function send_transact_sms($request)
+	{
+		$authkey = $this->authkey;
+		$message = urlencode($request['message']);
+		$sender = $this->sender;
+		$mobile = $request['mobile'];
+		$curl = curl_init();
+		
+		curl_setopt_array($curl, array(
+		  CURLOPT_URL => "http://api.msg91.com/api/v2/sendsms?message=".$message."&encrypt=SOCKET&authkey=".$authkey."&mobiles=".$mobile."&route=4&sender=".$sender."&country=91",
+
+		  CURLOPT_RETURNTRANSFER => true,
+		  CURLOPT_ENCODING => "",
+		  CURLOPT_MAXREDIRS => 10,
+		  CURLOPT_TIMEOUT => 30,
+		  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		  CURLOPT_CUSTOMREQUEST => "POST",
+		  CURLOPT_POSTFIELDS => "{ \"sender\": \"$sender\", \"route\": \"4\", \"country\": \"91\", \"sms\": [ { \"message\": \"$message\", \"to\": [ \"$mobile\"] } ] }",
+		
+		  CURLOPT_SSL_VERIFYHOST => 0,
+		  CURLOPT_SSL_VERIFYPEER => 0,
+		  CURLOPT_HTTPHEADER => array(
+		    "authkey: ".$authkey,
+		    "content-type: application/json"
+		  ),
+		));
+
+		$result = curl_exec($curl);
+		$err = curl_error($curl);
+		$result_msg = json_decode($result);		
+		curl_close($curl);
+		if ($err) {
+		  //echo "cURL Error #:" . $err;
+		  //throw new WC_REST_Exception( 'woocommerce_rest_send_otp_fail', __( 'Cannot send otp.', 'woocommerce' ), 400 );
+			$response = new stdClass();
+		    $response->code     = 'failure';
+		    $response->message  = 'Cannot send message';
+		    $response->data  = $err;
+		    return new WP_REST_Response( $response , 400 );
+		} else {
+		  
+		 // $response = $this->prepare_item_for_response( $response, $request );
+			$response = new stdClass();
+		    $response->code     = $result_msg->type;
+		    $response->message  = $result_msg->message;
+		    $response->data 	= json_decode($result);
+		    return new WP_REST_Response( $response , 200 );
+			//return $response;
+		}
+	}
+
+
+
 	public function get_items_permissions_check( $request ) {
 		if ( ! wc_rest_check_user_permissions( 'read' ) ) {
 			return new WP_Error( 'woocommerce_rest_cannot_view', __( 'Sorry, you cannot list resources.', 'woocommerce' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		return true;
-	}
-
-	
-	public function find_customer_by_username($request)
-	{
-		$prepared_args['search']  = $request['search'];
-
-		if ( '' !== $prepared_args['search'] ) {
-			$prepared_args['search'] = '*' . $prepared_args['search'] . '*';
-		}
-
-		// Filter by email.
-		if ( ! empty( $request['email'] ) ) {
-			$prepared_args['search']         = $request['email'];
-			$prepared_args['search_columns'] = array( 'user_email' );
-		}
-
-		// Filter by email.
-		if ( ! empty( $request['username'] ) ) {
-			$prepared_args['search']         = $request['username'];
-			$prepared_args['search_columns'] = array( 'user_login' );
-		}
-
-		$prepared_args = apply_filters( 'woocommerce_rest_customer_query', $prepared_args, $request );
-
-		$query = new WP_User_Query( $prepared_args );
-
-		$users = array();
-		foreach ( $query->results as $user ) {
-			$data = $this->prepare_item_for_response( $user, $request );
-			$users[] = $this->prepare_response_for_collection( $data );
-		}
-		$response = new stdClass();
-		if(count($users)>0){
-			if($users[0]['username']==$request['username']){
-				
-			    $response->code     = 'success';
-			    $response->message  = 'User exists with this username';
-			    //$response->data  = $err;
-			    return new WP_REST_Response( $response , 200 );
-			}else{
-				$response->code     = 'error';
-			    $response->message  = 'User does not exist with this username';
-			    //$response->data  = $err;
-			    return new WP_REST_Response( $response , 403 );
-			}
-		}else{
-				$response->code     = 'error';
-			    $response->message  = 'User does not exist with this username';
-			    //$response->data  = $err;
-			    return new WP_REST_Response( $response , 403 );
-		}
-		//print_r($users);exit;
 	}
 
 	/**
@@ -310,171 +402,6 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 		return true;
 	}
 
-
-	public function forgot_pass_process($request){
-		global $wpdb;
-		$smsController =  new WC_REST_Sms_V1_Controller();
-		$otp_no = mt_rand(100000, 999999);
-		$startTime = date("Y-m-d H:i:s");
-		$expiry = date('Y-m-d H:i:s',strtotime('+3 minute',strtotime($startTime)));
-		//print_r($expiry);exit;
-		$table = $wpdb->prefix."users";
-		//print_r($table);exit;
-		$data =  array('password_otp' =>  $otp_no,"expiry_date"=>$expiry);
-		$response = new stdClass();
-
-		$request['username']  =  $request['mobile'];
-		$customer = new WC_Customer( );
-		if ( ! empty( $request['username'] ) ) {
-			$user = get_userdatabylogin($request['username']);
-		}else{
-				$response->code     = 'error';
-			    $response->message  = 'User does not exist with this username';
-			    //$response->data  = $err;
-			    return new WP_REST_Response( $response , 403 );
-		}
-		
-		if($user){
-			$where =  array('ID' =>  $user->data->ID);
-			if ( isset( $otp_no ) ) {
-					$wpdb->update($table, $data, $where);
-				}
-			$request['message'] = "Your OTP for forgot password is ".$otp_no;
-			////////send transaction sms for otp///////////
-			$smsController->send_transact_sms($request);
-				$response->code     = 'success';
-			    $response->message  = 'OTP sent successfully';
-			    return new WP_REST_Response( $response , 200 );
-		}else{
-				$response->code     = 'error';
-			    $response->message  = 'User does not exist with this username';
-			    //$response->data  = $err;
-			    return new WP_REST_Response( $response , 403 );
-		}
-		
-		
-
-		//$smsController->send_transact_sms($request);exit;
-		//WC_REST_Sms_V1_Controller::send_transact_sms($request);exit;
-	}
-
-
-	public function forgot_pass_otp_verify($request){
-		$request['username']  =  $request['mobile'];
-		$customer = new WC_Customer();
-		$response = new stdClass();
-		$prepared_args['search']  = $request['search'];
-
-		if ( ! empty( $request['username'] ) ) {
-			$user = get_userdatabylogin($request['username']);
-		}else{
-				$response->code     = 'error';
-			    $response->message  = 'User does not exist with this username';
-			    //$response->data  = $err;
-			    return new WP_REST_Response( $response , 403 );
-		}
-		if($user){
-
-				$password_otp = $user->data->password_otp;
-				$expiry = strtotime($user->data->expiry_date);
-				$cur_time = time();
-
-				if($password_otp== $request['otp'] && $cur_time<$expiry ){
-
-						$response->code     = 'success';
-				    	$response->message  = 'OTP verified successfully';
-				    	$error_code = 200;
-					
-					
-			    	//return new WP_REST_Response( $response , 200 );
-				}else if($cur_time>$expiry && $password_otp== $request['otp']){
-					$response->code     = 'error';
-			    	$response->message  = 'OTP expired';
-			    	$error_code = 401;
-			    	//return new WP_REST_Response( $response , 401 );
-				}else{
-					$response->code     = 'error';
-			    	$response->message  = 'Invalid OTP';
-			    	$error_code = 401;
-				}
-		}else{
-				$response->code     = 'error';
-			    $response->message  = 'User does not exist with this username';
-			    //$response->data  = $err;
-			    $error_code = 403;
-			    
-		}
-		return new WP_REST_Response( $response , $error_code );
-	}
-
-	public function update_forgot_pass($request)
-	{
-		$request['username']  =  $request['mobile'];
-		$customer = new WC_Customer();
-		$response = new stdClass();
-		$prepared_args['search']  = $request['search'];
-
-		if ( ! empty( $request['username'] ) ) {
-			$user = get_userdatabylogin($request['username']);
-		}else{
-				$response->code     = 'error';
-			    $response->message  = 'User does not exist with this username';
-			    //$response->data  = $err;
-			    return new WP_REST_Response( $response , 403 );
-		}
-		if($user){
-
-				$password_otp = $user->data->password_otp;
-				$expiry = strtotime($user->data->expiry_date);
-				$cur_time = time();
-
-				if($password_otp== $request['otp'] && $cur_time<$expiry ){
-
-					if ( isset( $request['new_pass'] ) &&  $request['new_pass']!="" ) {
-						$new_pass =  wc_clean( $request['new_pass'] ) ;
-						wp_set_password( $new_pass, $user->data->ID );
-						//$user_data = get_userdata( $user->data->ID );
-						if ( ! empty( $request['username'] ) ) {
-							$prepared_args['search']         = $request['username'];
-							$prepared_args['search_columns'] = array( 'user_login' );
-						}
-
-						$prepared_args = apply_filters( 'woocommerce_rest_customer_query', $prepared_args, $request );
-
-						$query = new WP_User_Query( $prepared_args );
-
-						$users = array();
-						foreach ( $query->results as $user ) {
-							$data = $this->prepare_item_for_response( $user, $request );
-							$users[] = $this->prepare_response_for_collection( $data );
-						}
-						$response->code     = 'success';
-				    	$response->message  = 'Password updated successfully';
-				    	$response->data 	= $users;
-				    	$error_code = 200;
-					}else{
-						$response->code     = 'error';
-				    	$response->message  = 'Please enter new password';
-				    	$error_code = 400;
-				    	//return new WP_REST_Response( $response , 200 );
-					}
-					
-			    	//return new WP_REST_Response( $response , 200 );
-				}else{
-					$response->code     = 'error';
-			    	$response->message  = 'OTP expired';
-			    	$error_code = 401;
-			    	//return new WP_REST_Response( $response , 401 );
-				}
-		}else{
-				$response->code     = 'error';
-			    $response->message  = 'User does not exist with this username';
-			    //$response->data  = $err;
-			    $error_code = 403;
-			    
-		}
-		return new WP_REST_Response( $response , $error_code );
-	}
 	/**
 	 * Check if a given request has access to read a customer.
 	 *
@@ -533,6 +460,17 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 	 * @return bool|WP_Error
 	 */
 	public function batch_items_permissions_check( $request ) {
+		//echo 123;exit;
+		if ( ! wc_rest_check_user_permissions( 'batch' ) ) {
+			return new WP_Error( 'woocommerce_rest_cannot_batch', __( 'Sorry, you are not allowed to batch manipulate this resource.', 'woocommerce' ), array( 'status' => rest_authorization_required_code() ) );
+		}
+
+		return true;
+	}
+
+
+	public function send_otp_permissions_check( $request ) {
+		//echo 123;exit;
 		if ( ! wc_rest_check_user_permissions( 'batch' ) ) {
 			return new WP_Error( 'woocommerce_rest_cannot_batch', __( 'Sorry, you are not allowed to batch manipulate this resource.', 'woocommerce' ), array( 'status' => rest_authorization_required_code() ) );
 		}
@@ -547,7 +485,6 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function get_items( $request ) {
-
 		$prepared_args = array();
 		$prepared_args['exclude'] = $request['exclude'];
 		$prepared_args['include'] = $request['include'];
@@ -577,13 +514,6 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 			$prepared_args['search_columns'] = array( 'user_email' );
 		}
 
-		// Filter by email.
-		if ( ! empty( $request['username'] ) ) {
-			$prepared_args['search']         = $request['username'];
-			$prepared_args['search_columns'] = array( 'user_login' );
-		}
-
-
 		// Filter by role.
 		if ( 'all' !== $request['role'] ) {
 			$prepared_args['role'] = $request['role'];
@@ -608,7 +538,7 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 		}
 
 		$response = rest_ensure_response( $users );
-		//print_r($response);exit;
+
 		// Store pagination values for headers then unset for count query.
 		$per_page = (int) $prepared_args['number'];
 		$page = ceil( ( ( (int) $prepared_args['offset'] ) / $per_page ) + 1 );

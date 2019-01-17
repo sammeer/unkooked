@@ -144,6 +144,8 @@ class WC_API extends WC_Legacy_API {
 		include_once dirname( __FILE__ ) . '/api/v1/class-wc-rest-customer-downloads-controller.php';
 		include_once dirname( __FILE__ ) . '/api/v1/class-wc-rest-customers-controller.php';
 		include_once dirname( __FILE__ ) . '/api/v1/class-wc-rest-sms-controller.php';
+		include_once dirname( __FILE__ ) . '/api/v1/class-wc-rest-multiaddress-controller.php';
+		include_once dirname( __FILE__ ) . '/api/v1/class-wc-rest-notification-controller.php';
 		include_once dirname( __FILE__ ) . '/api/v1/class-wc-rest-orders-controller.php';
 		include_once dirname( __FILE__ ) . '/api/v1/class-wc-rest-order-notes-controller.php';
 		include_once dirname( __FILE__ ) . '/api/v1/class-wc-rest-order-refunds-controller.php';
@@ -172,6 +174,8 @@ class WC_API extends WC_Legacy_API {
 		include_once dirname( __FILE__ ) . '/api/class-wc-rest-customer-downloads-controller.php';
 		include_once dirname( __FILE__ ) . '/api/class-wc-rest-customers-controller.php';
 		include_once dirname( __FILE__ ) . '/api/class-wc-rest-sms-controller.php';
+		include_once dirname( __FILE__ ) . '/api/class-wc-rest-multiaddress-controller.php';
+		include_once dirname( __FILE__ ) . '/api/class-wc-rest-notification-controller.php';
 		include_once dirname( __FILE__ ) . '/api/class-wc-rest-orders-controller.php';
 		include_once dirname( __FILE__ ) . '/api/class-wc-rest-network-orders-controller.php';
 		include_once dirname( __FILE__ ) . '/api/class-wc-rest-order-notes-controller.php';
@@ -217,6 +221,8 @@ class WC_API extends WC_Legacy_API {
 			'WC_REST_Customer_Downloads_V1_Controller',
 			'WC_REST_Customers_V1_Controller',
 			'WC_REST_Sms_V1_Controller',
+			'WC_REST_Multiaddress_V1_Controller',
+			'WC_REST_Notification_V1_Controller',
 			'WC_REST_Order_Notes_V1_Controller',
 			'WC_REST_Order_Refunds_V1_Controller',
 			'WC_REST_Orders_V1_Controller',
@@ -240,6 +246,8 @@ class WC_API extends WC_Legacy_API {
 			'WC_REST_Customer_Downloads_Controller',
 			'WC_REST_Customers_Controller',
 			'WC_REST_Sms_Controller',
+			'WC_REST_Multiaddress_Controller',
+			'WC_REST_Notification_Controller',
 			'WC_REST_Network_Orders_Controller',
 			'WC_REST_Order_Notes_Controller',
 			'WC_REST_Order_Refunds_Controller',
