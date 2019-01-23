@@ -601,12 +601,20 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 
 		$query = new WP_User_Query( $prepared_args );
 
+		
+
 		$users = array();
 		foreach ( $query->results as $user ) {
 			$data = $this->prepare_item_for_response( $user, $request );
+			///multiple shipping address in meta
+			$otherAddr = get_user_meta( $user->ID, 'wc_multiple_shipping_addresses', true );
+			//print_r($data->data['shipping']);
+			$data->data['shipping'] = $otherAddr;
 			$users[] = $this->prepare_response_for_collection( $data );
+			//$users[]
 		}
-
+		
+		
 		$response = rest_ensure_response( $users );
 		//print_r($response);exit;
 		// Store pagination values for headers then unset for count query.

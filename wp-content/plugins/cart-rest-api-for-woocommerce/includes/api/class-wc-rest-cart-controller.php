@@ -82,6 +82,12 @@ class WC_REST_Cart_Controller {
 			'callback' => array( $this, 'apply_cart_coupon' ),
 		));
 
+		// View Cart - wc/v2/cart/clear (POST)
+		register_rest_route( $this->namespace, '/' . $this->rest_base  . '/remove_coupon', array(
+			'methods'  => WP_REST_Server::CREATABLE,
+			'callback' => array( $this, 'remove_cart_coupon' ),
+		));
+
 		// Add Item - wc/v2/cart/add (POST)
 		register_rest_route( $this->namespace, '/' . $this->rest_base . '/add', array(
 			'methods'  => WP_REST_Server::CREATABLE,
@@ -227,96 +233,57 @@ class WC_REST_Cart_Controller {
 		}
 	} // END clear_cart()
 
-
-	public function apply_cart_coupon($data = array()){
-
-		// Coupons are globally disabled.
-		if ( ! wc_coupons_enabled() ) {
-			return false;
+	public function remove_cart_coupon($request){
+		//$result = WC()->cart->apply_coupon($request['coupon_code']);
+		$response = new stdClass();
+		if ( WC()->cart->remove_coupon($request['coupon_code'])) {
+			//return new WP_REST_Response( __( 'Coupon code removed', 'cart-rest-api-for-woocommerce' ), 200 );
+			$response->code     = 'success';
+			$response->message  = 'Coupon code removed';
+			$error_code = 200;
+		} else {
+			$response->code     = 'error';
+			$response->message  = 'Coupon code removal failed';
+			$error_code = 500;
+			//return new WP_Error( 'wc_cart_rest_apply_coupon_failed', __( 'Invalid Coupon Code', 'cart-rest-api-for-woocommerce' ), array( 'status' => 500 ) );
 		}
+		return new WP_REST_Response( $response , $error_code );
+	}
+
+	
+
+	public function apply_cart_coupon($request){
+
 		
-		$coupon_code = $data['coupon_code'];
-		//print_r($coupon_code);exit;echo 123;exit;
+		
 		// Sanitize coupon code.
-		$coupon_code = wc_format_coupon_code( $coupon_code );
+		$coupon_code = wc_format_coupon_code( $request['coupon_code'] );
 
 		// Get the coupon.
 		$the_coupon = new WC_Coupon( $coupon_code );
-
-		 print_r($the_coupon);exit;
-
-		// Prevent adding coupons by post ID.
-		if ( $the_coupon->get_code() !== $coupon_code ) {
-			$the_coupon->set_code( $coupon_code );
-			$the_coupon->add_coupon_message( WC_Coupon::E_WC_COUPON_NOT_EXIST );
-			return false;
-		}
-
-		// Check it can be used with cart.
-		if ( ! $the_coupon->is_valid() ) {
-			wc_add_notice( $the_coupon->get_error_message(), 'error' );
-			return false;
-		}
-
+		//echo $the_coupon;exit;
+		$response = new stdClass();
 		// Check if applied.
-		if ( $this->has_discount( $coupon_code ) ) {
-			$the_coupon->add_coupon_message( WC_Coupon::E_WC_COUPON_ALREADY_APPLIED );
-			return false;
-		}
+		if ( WC()->cart->has_discount( $coupon_code ) ) {
+			$response->code     = 'error';
+			$response->message  = 'Coupon already applied';
+			$error_code = 500;
 
-		// If its individual use then remove other coupons.
-		if ( $the_coupon->get_individual_use() ) {
-			$coupons_to_keep = apply_filters( 'woocommerce_apply_individual_use_coupon', array(), $the_coupon, $this->applied_coupons );
-
-			foreach ( $this->applied_coupons as $applied_coupon ) {
-				$keep_key = array_search( $applied_coupon, $coupons_to_keep, true );
-				if ( false === $keep_key ) {
-					$this->remove_coupon( $applied_coupon );
-				} else {
-					unset( $coupons_to_keep[ $keep_key ] );
-				}
+		}else{
+			//$result = WC()->cart->apply_coupon($request['coupon_code']);
+			if ( WC()->cart->apply_coupon($request['coupon_code'])) {
+				///return new WP_REST_Response( __( 'Coupon code applied', 'cart-rest-api-for-woocommerce' ), 200 );
+				$response->code     = 'success';
+				$response->message  = 'Coupon code applied';
+				$error_code = 200;
+			} else {
+				//return new WP_Error( 'wc_cart_rest_apply_coupon_failed', __( 'Invalid Coupon Code', 'cart-rest-api-for-woocommerce' ), array( 'status' => 500 ) );
+				$response->code     = 'error';
+				$response->message  = 'Invalid Coupon Code';
+				$error_code = 500;
 			}
-
-			if ( ! empty( $coupons_to_keep ) ) {
-				$this->applied_coupons += $coupons_to_keep;
-			}
-		}
-
-		// Check to see if an individual use coupon is set.
-		if ( $this->applied_coupons ) {
-			foreach ( $this->applied_coupons as $code ) {
-				$coupon = new WC_Coupon( $code );
-
-				if ( $coupon->get_individual_use() && false === apply_filters( 'woocommerce_apply_with_individual_use_coupon', false, $the_coupon, $coupon, $this->applied_coupons ) ) {
-
-					// Reject new coupon.
-					$coupon->add_coupon_message( WC_Coupon::E_WC_COUPON_ALREADY_APPLIED_INDIV_USE_ONLY );
-
-					return false;
-				}
-			}
-		}
-
-		$this->applied_coupons[] = $coupon_code;
-
-		// Choose free shipping.
-		if ( $the_coupon->get_free_shipping() ) {
-			$packages                = WC()->shipping->get_packages();
-			$chosen_shipping_methods = WC()->session->get( 'chosen_shipping_methods' );
-
-			foreach ( $packages as $i => $package ) {
-				$chosen_shipping_methods[ $i ] = 'free_shipping';
-			}
-
-			WC()->session->set( 'chosen_shipping_methods', $chosen_shipping_methods );
-		}
-
-		$the_coupon->add_coupon_message( WC_Coupon::WC_COUPON_SUCCESS );
-
-		do_action( 'woocommerce_applied_coupon', $coupon_code );
-
-		return true;
-	
+	}
+		return new WP_REST_Response( $response , $error_code );
 	}
 
 	/**

@@ -95,33 +95,41 @@ class WC_REST_Multiaddress_V1_Controller extends WC_REST_Controller {
 	public function add_ship_address($request){
 
 		///validate user
+		$params = $request->get_body();
+		
+		$params = json_decode($params);
+		
 		$response = new stdClass();
-		$id        = (int) $request['customer_id'];
+		$id        = (int) $params[0]->customer_id;
 		$user_data = get_userdata( $id );
 
 		if ( empty( $id ) || empty(  $user_data->data->ID ) ) {
 			return new WP_Error( 'woocommerce_rest_invalid_id', __( 'Invalid resource ID.', 'woocommerce' ), array( 'status' => 404 ) );
 		}
-
-		$ship_add = array(
-						'label' => $request['label'],
-						'shipping_first_name' => $request['shipping_first_name'],
-						'shipping_last_name' => $request['shipping_last_name'],
-						'shipping_country' => $request['shipping_country'],
-						'shipping_address_1' => $request['shipping_address_1'],
-						'shipping_address_2' => $request['shipping_address_2'],
-						'shipping_city' => $request['shipping_city'],
-						'shipping_state' => $request['shipping_state'],
-						'shipping_postcode' => $request['shipping_postcode'],
-						'shipping_address_is_default' => $request['shipping_address_is_default']
-						 );
 		
+		for($i=0;$i<count($params);$i++){
+				$ship_add[] = array(
+						'label' => $params[$i]->label,
+						'shipping_first_name' => $params[$i]->shipping_first_name,
+						'shipping_last_name' => $params[$i]->shipping_last_name,
+						'shipping_country' => $params[$i]->shipping_country,
+						'shipping_address_1' => $params[$i]->shipping_address_1,
+						'shipping_address_2' => $params[$i]->shipping_address_2,
+						'shipping_city' => $params[$i]->shipping_city,
+						'shipping_state' => $params[$i]->shipping_state,
+						'shipping_postcode' => $params[$i]->shipping_postcode,
+						'shipping_address_is_default' => $params[$i]->shipping_address_is_default
+						 );	
+		}
 		
+		$addresses = $ship_add;
+		//print_r($params);
+		//exit;
 		////get users previous address 
-		$otherAddr = get_user_meta( $user_data->data->ID, 'wc_multiple_shipping_addresses', true );
+		//$otherAddr = get_user_meta( $user_data->data->ID, 'wc_multiple_shipping_addresses', true );
 		
 		////add them to current data
-		if(count($otherAddr)==0){
+		/*if(count($otherAddr)==0){
 			
 			$addresses = $ship_add;
 			
@@ -129,18 +137,14 @@ class WC_REST_Multiaddress_V1_Controller extends WC_REST_Controller {
 			
 			$otherAddr[] = $ship_add;
 			$addresses = $otherAddr;
-		}
+		}*/
 
 		////update all the addresses
-		if(update_user_meta( $user_data->data->ID, 'wc_multiple_shipping_addresses', $addresses )){
+		update_user_meta( $user_data->ID, 'wc_multiple_shipping_addresses', $addresses );
 				$response->code     = 'success';
 				$response->message  = 'Address Saved successfully';
 				$error_code = 200;
-		}else{
-				$response->code     = 'error';
-				$response->message  = 'Some issue occured';
-				$error_code = 400;
-		}
+		
 		return new WP_REST_Response( $response , $error_code );
 		
 	}
