@@ -231,6 +231,17 @@ class WC_REST_Orders_Controller extends WC_REST_Legacy_Orders_Controller {
 			);
 		}
 
+
+		$data['schdule'] = array();
+		if(!empty($data['meta_data'])){
+			foreach($data['meta_data'] as $meta_data){
+				if($meta_data->key=="order_schdule"){
+						$data['schdule'] = $meta_data->value;
+					}
+			}
+		}
+
+		
 		return array(
 			'id'                   => $object->get_id(),
 			'parent_id'            => $data['parent_id'],
@@ -241,6 +252,7 @@ class WC_REST_Orders_Controller extends WC_REST_Legacy_Orders_Controller {
 			'status'               => $data['status'],
 			'currency'             => $data['currency'],
 			'date_created'         => $data['date_created'],
+			'order_schdule'        => $data['schdule'],
 			'date_created_gmt'     => $data['date_created_gmt'],
 			'date_modified'        => $data['date_modified'],
 			'date_modified_gmt'    => $data['date_modified_gmt'],
@@ -1633,6 +1645,12 @@ class WC_REST_Orders_Controller extends WC_REST_Legacy_Orders_Controller {
 							),
 						),
 					),
+				),
+				'order_schdule'   => array(
+					'description' => __( 'Note left by customer during checkout.', 'woocommerce' ),
+					'type'        => 'string',
+					'context'     => array( 'view', 'edit' ),
+					'readonly'    => true,
 				),
 				'set_paid'             => array(
 					'description' => __( 'Define if the order is paid. It will set the status to processing and reduce stock items.', 'woocommerce' ),

@@ -104,9 +104,12 @@ class Jwt_Auth_Public
      */
     public function generate_token($request)
     {
+
         $secret_key = defined('JWT_AUTH_SECRET_KEY') ? JWT_AUTH_SECRET_KEY : false;
         $username = $request->get_param('username');
         $password = $request->get_param('password');
+        $device_id = $request->get_param('device_id');
+        $device_type = $request->get_param('type');
 
         /** First thing, check the secret key if not exist return a error*/
         if (!$secret_key) {
@@ -120,6 +123,7 @@ class Jwt_Auth_Public
         }
         /** Try to authenticate the user with the passed credentials*/
         $user = wp_authenticate($username, $password);
+
         //print_r($user);
 
         /** If the authentication fails return a error*/
@@ -153,18 +157,40 @@ class Jwt_Auth_Public
 
         /** Let the user modify the token data before the sign. */
         $token = JWT::encode(apply_filters('jwt_auth_token_before_sign', $token, $user), $secret_key);
+        $device = $this->device_id_manage($device_id,$device_type,$user);
+        if($device!=""){
+           return new WP_Error( 'woocommerce_rest_invalid_input', __( 'Invalid input.', 'woocommerce' ), array( 'status' => 400 ) );
+        }else{
+            /** The token is signed, now create the object with no sensible user data to the client*/
+            $data = array(
+                'token' => $token,
+                'id' => $user->data->ID,
+                'user_email' => $user->data->user_email,
+                'user_nicename' => $user->data->user_nicename,
+                'user_display_name' => $user->data->display_name,
+            );    
+            /** Let the user modify the data before send it back */
+             return apply_filters('jwt_auth_token_before_dispatch', $data, $user);
+        }
+        
+        
+        
+    }
 
-        /** The token is signed, now create the object with no sensible user data to the client*/
-        $data = array(
-            'token' => $token,
-            'id' => $user->data->ID,
-            'user_email' => $user->data->user_email,
-            'user_nicename' => $user->data->user_nicename,
-            'user_display_name' => $user->data->display_name,
-        );
-
-        /** Let the user modify the data before send it back */
-        return apply_filters('jwt_auth_token_before_dispatch', $data, $user);
+    private function device_id_manage($device_id,$device_type,$user){
+        $flag = "";
+        global $wpdb;
+        $table = $wpdb->prefix."users";
+        if($device_id=="" || $device_type==""){
+           return  $flag = "invalid";
+        }else{
+            if($user->data->device_id!=$device_id){
+                $data =  array('device_id' =>  $device_id,"device_type"=>$device_type);
+                $where =  array('ID' => $user->data->ID);
+                $wpdb->update($table, $data, $where);    
+            }
+            
+        }
     }
 
     /**
