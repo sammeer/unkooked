@@ -107,7 +107,7 @@ class WC_REST_Geolocation_Controller {
 															"lat" => "19.2136372",
 															"long"=> "72.9844176"
 															),
-												"radius"	=> "2000"
+												"radius"	=> "50000"
 												)
 												
 						);
@@ -117,7 +117,7 @@ class WC_REST_Geolocation_Controller {
 															"lat" => "19.2136372",
 															"long"=> "72.9844176"
 															),
-												"radius"	=> "2000"
+												"radius"	=> "50000"
 												)
 												);
 
@@ -127,7 +127,7 @@ class WC_REST_Geolocation_Controller {
 															"lat" => "19.2136372",
 															"long"=> "72.9844176"
 															),
-												"radius"	=> "1000"
+												"radius"	=> "50000"
 												)
 												);
 
@@ -137,7 +137,7 @@ class WC_REST_Geolocation_Controller {
 															"lat" => "19.2136372",
 															"long"=> "72.9844176"
 															),
-												"radius"	=> "2000"
+												"radius"	=> "50000"
 												)
 												);
 												
