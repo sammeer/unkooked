@@ -1033,6 +1033,7 @@ class WC_Cart extends WC_Legacy_Cart {
 	 */
 	public function add_to_cart( $product_id = 0, $quantity = 1, $variation_id = 0, $variation = array(), $cart_item_data = array() ) {
 		try {
+			
 			$product_id   = absint( $product_id );
 			$variation_id = absint( $variation_id );
 
@@ -1048,7 +1049,7 @@ class WC_Cart extends WC_Legacy_Cart {
 			if ( $quantity <= 0 || ! $product_data || 'trash' === $product_data->get_status() ) {
 				return false;
 			}
-
+			//var_dump($product_data);exit;
 			// Load cart item data - may be added by other plugins.
 			$cart_item_data = (array) apply_filters( 'woocommerce_add_cart_item_data', $cart_item_data, $product_id, $variation_id, $quantity );
 
@@ -1123,6 +1124,7 @@ class WC_Cart extends WC_Legacy_Cart {
 					), $cart_item_key
 				);
 			}
+			
 
 			do_action( 'woocommerce_add_to_cart', $cart_item_key, $product_id, $quantity, $variation_id, $variation, $cart_item_data );
 
@@ -1575,7 +1577,7 @@ class WC_Cart extends WC_Legacy_Cart {
 
 		// Get the coupon.
 		$the_coupon = new WC_Coupon( $coupon_code );
-
+		//echo $the_coupon;exit;
 		// Prevent adding coupons by post ID.
 		if ( $the_coupon->get_code() !== $coupon_code ) {
 			$the_coupon->set_code( $coupon_code );

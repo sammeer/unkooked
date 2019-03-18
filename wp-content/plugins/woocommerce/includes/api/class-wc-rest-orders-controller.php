@@ -143,6 +143,37 @@ class WC_REST_Orders_Controller extends WC_REST_Legacy_Orders_Controller {
 	 * @param WC_Order_item $item Order item data.
 	 * @return array
 	 */
+
+	protected function calculate_coupons( $request, $order ) {
+		if ( ! isset( $request['coupon_lines'] ) || ! is_array( $request['coupon_lines'] ) ) {
+			return false;
+		}
+
+		// Remove all coupons first to ensure calculation is correct.
+		foreach ( $order->get_items( 'coupon' ) as $coupon ) {
+			$order->remove_coupon( $coupon->get_code() );
+		}
+
+		foreach ( $request['coupon_lines'] as $item ) {
+			if ( is_array( $item ) ) {
+				if ( empty( $item['id'] ) ) {
+					if ( empty( $item['code'] ) ) {
+						throw new WC_REST_Exception( 'woocommerce_rest_invalid_coupon', __( 'Coupon code is required.', 'woocommerce' ), 400 );
+					}
+
+					$results = $order->apply_coupon( wc_clean( $item['code'] ) );
+
+					if ( is_wp_error( $results ) ) {
+						throw new WC_REST_Exception( 'woocommerce_rest_' . $results->get_error_code(), $results->get_error_message(), 400 );
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
+
 	protected function get_order_item_data( $item ) {
 		$data           = $item->get_data();
 		$format_decimal = array( 'subtotal', 'subtotal_tax', 'total', 'total_tax', 'tax_total', 'shipping_tax_total' );
@@ -528,6 +559,7 @@ class WC_REST_Orders_Controller extends WC_REST_Legacy_Orders_Controller {
 			if ( ! is_null( $request['customer_id'] ) && 0 !== $request['customer_id'] ) {
 				// Make sure customer exists.
 				if ( false === get_user_by( 'id', $request['customer_id'] ) ) {
+					echo 123;
 					throw new WC_REST_Exception( 'woocommerce_rest_invalid_customer_id', __( 'Customer ID is invalid.', 'woocommerce' ), 400 );
 				}
 
@@ -548,6 +580,9 @@ class WC_REST_Orders_Controller extends WC_REST_Legacy_Orders_Controller {
 				}
 			}
 
+			// Set coupons.
+			$this->calculate_coupons( $request, $object );
+			
 			// Set status.
 			if ( ! empty( $request['status'] ) ) {
 				$object->set_status( $request['status'] );
@@ -561,7 +596,27 @@ class WC_REST_Orders_Controller extends WC_REST_Legacy_Orders_Controller {
 					$object->payment_complete( $request['transaction_id'] );
 				}
 			}
+			/////////////send notification////////////////
+			///to customer
+			$obj_notify = new WC_REST_Notification_Controller();
+			$notification_data_cus = array(
+									"order_id" => $object->get_id(), 
+									"customer_id" =>$request['customer_id'],
+									"flag"=>"new_order",
+									"user_type" => 1
+									);
+			$obj_notify->send_push_notification_customer($notification_data_cus);
+			
 
+			/////to admin
+
+			$notification_data_ad = array(
+									"order_id" => $object->get_id(), 
+									"flag"=>"new_order",
+									"user_type" => 2
+									);
+			$obj_notify->send_push_notification_admin($notification_data_ad);
+		////////////send notification ends/////////////
 			return $this->get_object( $object->get_id() );
 		} catch ( WC_Data_Exception $e ) {
 			return new WP_Error( $e->getErrorCode(), $e->getMessage(), $e->getErrorData() );

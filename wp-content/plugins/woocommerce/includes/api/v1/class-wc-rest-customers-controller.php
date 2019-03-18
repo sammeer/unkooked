@@ -446,7 +446,15 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 						$users = array();
 						foreach ( $query->results as $user ) {
 							$data = $this->prepare_item_for_response( $user, $request );
+							///multiple shipping address in meta
+							$otherAddr = get_user_meta( $user->ID, 'wc_multiple_shipping_addresses', true );
+							//print_r($data->data['shipping']);
+							if(empty($otherAddr)){
+								$otherAddr = array();
+							}
+							$data->data['shipping'] = $otherAddr;
 							$users[] = $this->prepare_response_for_collection( $data );
+							//$users[]
 						}
 						$response->code     = 'success';
 				    	$response->message  = 'Password updated successfully';
@@ -609,6 +617,9 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 			///multiple shipping address in meta
 			$otherAddr = get_user_meta( $user->ID, 'wc_multiple_shipping_addresses', true );
 			//print_r($data->data['shipping']);
+			if(empty($otherAddr)){
+				$otherAddr = array();
+			}
 			$data->data['shipping'] = $otherAddr;
 			$users[] = $this->prepare_response_for_collection( $data );
 			//$users[]
@@ -679,6 +690,7 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 			$this->update_customer_meta_fields( $customer, $request );
 			$customer->save();
 
+
 			if ( ! $customer->get_id() ) {
 				throw new WC_REST_Exception( 'woocommerce_rest_cannot_create', __( 'This resource cannot be created.', 'woocommerce' ), 400 );
 			}
@@ -693,10 +705,18 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 			 * @param WP_REST_Request $request   Request object.
 			 * @param boolean         $creating  True when creating customer, false when updating customer.
 			 */
-			do_action( 'woocommerce_rest_insert_customer', $user_data, $request, true );
 
+			do_action( 'woocommerce_rest_insert_customer', $user_data, $request, true );
 			$request->set_param( 'context', 'edit' );
+			$otherAddr = get_user_meta( $user_data->ID, 'wc_multiple_shipping_addresses', true );
+
+			if(empty($otherAddr)){
+								$otherAddr = array();
+						}
+
+			
 			$response = $this->prepare_item_for_response( $user_data, $request );
+			$response->data['shipping']= $otherAddr;		
 			$response = rest_ensure_response( $response );
 			$response->set_status( 201 );
 			$response->header( 'Location', rest_url( sprintf( '/%s/%s/%d', $this->namespace, $this->rest_base, $customer->get_id() ) ) );
@@ -720,8 +740,17 @@ class WC_REST_Customers_V1_Controller extends WC_REST_Controller {
 		if ( empty( $id ) || empty( $user_data->ID ) ) {
 			return new WP_Error( 'woocommerce_rest_invalid_id', __( 'Invalid resource ID.', 'woocommerce' ), array( 'status' => 404 ) );
 		}
-
+		
 		$customer = $this->prepare_item_for_response( $user_data, $request );
+		//print_r($customer->data['shipping']);exit;
+		$otherAddr = get_user_meta( $id, 'wc_multiple_shipping_addresses', true );
+			//print_r($data->data['shipping']);
+			if(empty($otherAddr)){
+				$otherAddr = array();
+			}
+			$customer->data['shipping'] = $otherAddr;
+			/*$users[] = $this->prepare_response_for_collection( $data );*/
+	
 		$response = rest_ensure_response( $customer );
 
 		return $response;
